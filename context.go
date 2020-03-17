@@ -40,22 +40,34 @@ const abortIndex int8 = math.MaxInt8 / 2
 
 // Context is the most important part of gin. It allows us to pass variables between middleware,
 // manage the flow, validate the JSON of a request and render a JSON response for example.
+// Context 结构是gin最重要的部分，用来在中间件中传递本次请求的各种数据、管理流程，进行响应
 type Context struct {
-	writermem responseWriter
-	Request   *http.Request
-	Writer    ResponseWriter
 
+	// ServerHTTP的第二个参数
+	Request   *http.Request
+
+	// 用来响应
+	Writer    ResponseWriter
+	writermem responseWriter
+
+	// URL里面的参数，比如：/xx/:id
 	Params   Params
+
+	// 参与的处理者（中间件 + 请求处理者列表）
 	handlers HandlersChain
+	// 当前处理到的handler的下标
 	index    int8
 	fullPath string
 
+	// Engine单例
 	engine *Engine
 
 	// Keys is a key/value pair exclusively for the context of each request.
+	// 在context中可以设置的值
 	Keys map[string]interface{}
 
 	// Errors is a list of errors attached to all the handlers/middlewares who used this context.
+	// 一系列错误
 	Errors errorMsgs
 
 	// Accepted defines a list of manually accepted formats for content negotiation.
@@ -68,11 +80,13 @@ type Context struct {
 	// or PUT body parameters.
 	formCache url.Values
 }
+// 每当一个请求来到服务器，都会从对象池中拿到一个context
 
 /************************************/
 /********** CONTEXT CREATION ********/
 /************************************/
-
+// 创建
+// 从对象池中拿出来后需要初始化
 func (c *Context) reset() {
 	c.Writer = &c.writermem
 	c.Params = c.Params[0:0]
@@ -88,6 +102,7 @@ func (c *Context) reset() {
 
 // Copy returns a copy of the current context that can be safely used outside the request's scope.
 // This has to be used when the context has to be passed to a goroutine.
+// 使用克隆，用于goroutinue中
 func (c *Context) Copy() *Context {
 	var cp = *c
 	cp.writermem.ResponseWriter = nil
@@ -106,12 +121,14 @@ func (c *Context) Copy() *Context {
 
 // HandlerName returns the main handler's name. For example if the handler is "handleGetUsers()",
 // this function will return "main.handleGetUsers".
+// 得到最后处理者的名字
 func (c *Context) HandlerName() string {
 	return nameOfFunction(c.handlers.Last())
 }
 
 // HandlerNames returns a list of all registered handlers for this context in descending order,
 // following the semantics of HandlerName()
+// 得到所有注册的处理这的名字
 func (c *Context) HandlerNames() []string {
 	hn := make([]string, 0, len(c.handlers))
 	for _, val := range c.handlers {
@@ -121,6 +138,7 @@ func (c *Context) HandlerNames() []string {
 }
 
 // Handler returns the main handler.
+// 得到最后的处理者
 func (c *Context) Handler() HandlerFunc {
 	return c.handlers.Last()
 }
@@ -137,10 +155,12 @@ func (c *Context) FullPath() string {
 /************************************/
 /*********** FLOW CONTROL ***********/
 /************************************/
+// 流程控制
 
 // Next should be used only inside middleware.
 // It executes the pending handlers in the chain inside the calling handler.
 // See example in GitHub.
+// 只能在中间件中使用，依次调用各个处理者
 func (c *Context) Next() {
 	c.index++
 	for c.index < int8(len(c.handlers)) {
