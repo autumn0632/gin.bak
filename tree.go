@@ -40,7 +40,7 @@ func (ps Params) ByName(name string) (va string) {
 }
 
 type methodTree struct {
-	method string
+	method string  // http 方法
 	root   *node
 }
 
@@ -94,15 +94,15 @@ const (
 )
 
 type node struct {
-	path      string
-	indices   string
+	path      string // 当前节点的路径
+	indices   string // 快速查找子节点
 	children  []*node
-	handlers  HandlersChain
+	handlers  HandlersChain //当前节点是否有处理函数
 	priority  uint32
 	nType     nodeType
 	maxParams uint8
 	wildChild bool
-	fullPath  string
+	fullPath  string //从根节点到当前节点的路径
 }
 
 // increments priority of the given child and reorders if necessary.
@@ -133,9 +133,9 @@ func (n *node) incrementChildPrio(pos int) int {
 func (n *node) addRoute(path string, handlers HandlersChain) {
 	fullPath := path
 	n.priority++
-	numParams := countParams(path)
+	numParams := countParams(path) // 参数
 
-	// Empty tree
+	// Empty tree 判断父节点是否为空
 	if len(n.path) == 0 && len(n.children) == 0 {
 		n.insertChild(numParams, path, fullPath, handlers)
 		n.nType = root

@@ -178,6 +178,7 @@ func (c *Context) IsAborted() bool {
 // Let's say you have an authorization middleware that validates that the current request is authorized.
 // If the authorization fails (ex: the password does not match), call Abort to ensure the remaining handlers
 // for this request are not called.
+// 请求废弃
 func (c *Context) Abort() {
 	c.index = abortIndex
 }
@@ -215,6 +216,7 @@ func (c *Context) AbortWithError(code int, err error) *Error {
 // A middleware can be used to collect all the errors and push them to a database together,
 // print a log, or append it in the HTTP response.
 // Error will panic if err is nil.
+// 给本次请求添加个错误。将错误收集然后用中间件统一处理（打日志|入库）是一个比较好的方案
 func (c *Context) Error(err error) *Error {
 	if err == nil {
 		panic("err is nil")
