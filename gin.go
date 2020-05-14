@@ -147,6 +147,9 @@ func New() *Engine {
 		secureJsonPrefix:       "while(1);",
 	}
 	engine.RouterGroup.engine = engine
+	// qiu:使用临时对象池存放Context结构，减少gc压力
+	// * engine.poll.get(t):获取一个Context，池中没有的话重新分配
+	// * engine.poll.Put(t):Context用完之后放回临时对象池
 	engine.pool.New = func() interface{} {
 		return engine.allocateContext()
 	}
@@ -296,8 +299,12 @@ func iterate(path, method string, routes RoutesInfo, root *node) RoutesInfo {
 func (engine *Engine) Run(addr ...string) (err error) {
 	defer func() { debugPrintError(err) }()
 
+	// 解析地址端口
 	address := resolveAddress(addr)
 	debugPrint("Listening and serving HTTP on %s\n", address)
+
+	// 调用 go原生的net/http服务, 重点在第二个参数
+	// engine 为实现了handler接口（ServeHTTP(ResponseWriter, *Request)）的数据类型
 	err = http.ListenAndServe(address, engine)
 	return
 }
@@ -362,13 +369,17 @@ func (engine *Engine) RunListener(listener net.Listener) (err error) {
 
 // ServeHTTP conforms to the http.Handler interface.
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	// 从临时对象池中取出对象
+	//类型转换：interface{} => *Context
 	c := engine.pool.Get().(*Context)
+	// 响应初始化
 	c.writermem.reset(w)
 	c.Request = req
 	c.reset()
 
 	engine.handleHTTPRequest(c)
 
+	// 将对象放入临时对象池
 	engine.pool.Put(c)
 }
 
